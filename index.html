@@ -82,6 +82,26 @@ tr:hover td{background:#F8FAFC}
 .btn-sheets:disabled{opacity:.6;cursor:not-allowed}
 .toast-error{background:#E24B4A}
 @media(max-width:640px){.form-grid,.form-grid-3,.form-grid-4{grid-template-columns:1fr}.metrics{grid-template-columns:1fr 1fr}}
+.modal-overlay{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.75);z-index:9999;align-items:flex-start;justify-content:center;padding-top:40px}
+.modal-box{background:#fff;border-radius:16px;padding:1.5rem;width:90%;max-width:420px;max-height:80vh;overflow-y:auto}
+.modal-title{font-size:15px;font-weight:700;color:#1E293B;margin-bottom:2px}
+.modal-sub{font-size:12px;color:#64748B;margin-bottom:1rem}
+.modal-row{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #F1F5F9;font-size:13px}
+.modal-row:last-child{border-bottom:none}
+.modal-lbl{color:#64748B;font-weight:500;flex-shrink:0;margin-right:8px}
+.modal-val{color:#1E293B;font-weight:600;text-align:right}
+.modal-btns{display:flex;gap:8px;margin-top:1.25rem}
+.mbtn{flex:1;border:none;border-radius:8px;padding:10px 6px;font-size:13px;font-weight:600;cursor:pointer}
+.mbtn-cancel{background:#F1F5F9;color:#64748B}
+.mbtn-ok{background:#185FA5;color:#fff}
+.mbtn-edit{background:#F59E0B;color:#fff}
+.mbtn-save{background:#1D9E75;color:#fff}
+.medit-group{display:flex;flex-direction:column;gap:4px;margin-bottom:10px}
+.medit-label{font-size:12px;color:#64748B;font-weight:600}
+.medit-input{width:100%;padding:7px 10px;border:1px solid #E2E8F0;border-radius:7px;font-size:13px;color:#1E293B;background:#F8FAFC;outline:none}
+.medit-input:focus{border-color:#185FA5;background:#fff}
+.medit-dd{position:relative}
+.medit-dd .dropdown-list{max-height:150px;z-index:10000;position:absolute;top:100%;left:0;right:0}
 </style>
 </head>
 <body>
@@ -189,7 +209,7 @@ tr:hover td{background:#F8FAFC}
   </div>
 
   <div class="btn-row">
-    <button class="btn btn-primary" onclick="agregarDoc()"><i class="ti ti-plus"></i> Agregar registro</button>
+    <button class="btn btn-primary" onclick="validarDoc()"><i class="ti ti-check"></i> Validar registro</button>
     <span class="error-msg" id="msg-error"><i class="ti ti-alert-circle"></i> Completa los campos marcados</span>
   </div>
 </div>
@@ -218,6 +238,19 @@ tr:hover td{background:#F8FAFC}
 </div>
 
 <div class="footer">Liquidación de Documentos — Procesado localmente en tu navegador</div>
+</div>
+
+<div class="modal-overlay" id="modal-overlay" onclick="if(event.target===this)cerrarModal()">
+  <div class="modal-box">
+    <p class="modal-title" id="modal-title">Confirmar registro</p>
+    <p class="modal-sub">Revisa los datos antes de ingresar</p>
+    <div id="modal-body"></div>
+    <div class="modal-btns" id="modal-btns">
+      <button class="mbtn mbtn-cancel" onclick="cerrarModal()">✕ Cancelar</button>
+      <button class="mbtn mbtn-edit" onclick="modoEditar()">✏️ Editar</button>
+      <button class="mbtn mbtn-ok" onclick="confirmarDoc()">✓ Ingresar</button>
+    </div>
+  </div>
 </div>
 
 <div class="toast" id="toast"><i class="ti ti-check"></i> <span id="toast-msg">Listo</span></div>
@@ -596,8 +629,172 @@ function exportarPDF(){
 renderCompras(COMPRAS);
 renderDeptos(DEPTOS);
 
+var _tmp = null;
+
+function validarDoc(){
+  if(!validar()) return;
+  var v = function(id){ return document.getElementById(id).value; };
+  var compra = v('f-tipo-compra').split('|');
+  _tmp = {
+    area:v('f-area'), persona:v('f-persona'), tipoDoc:v('f-tipo-doc'),
+    nfactura:v('f-nfactura').trim(), proveedor:v('f-proveedor').trim(),
+    tipoCompra:compra[0]||'', categoria:compra[1]||'',
+    cantidad:parseInt(v('f-cantidad'))||1, monto:parseFloat(v('f-monto'))||0,
+    fecha:v('f-fecha'), depto:v('f-depto'), tienda:v('f-tienda').trim()
+  };
+  var rows=[
+    ['Área',_tmp.area],['Persona',_tmp.persona],['Tipo Doc',_tmp.tipoDoc],
+    ['N° Factura',_tmp.nfactura],['Proveedor',_tmp.proveedor],
+    ['Tipo Compra',_tmp.tipoCompra],['Categoría',_tmp.categoria],
+    ['Cantidad',_tmp.cantidad],['Total (Q)','Q '+_tmp.monto.toFixed(2)],
+    ['Fecha',_tmp.fecha],['Depto',_tmp.depto],['Tienda',_tmp.tienda]
+  ];
+  document.getElementById('modal-body').innerHTML = rows.map(function(r){
+    return '<div class="modal-row"><span class="modal-lbl">'+r[0]+'</span><span class="modal-val">'+r[1]+'</span></div>';
+  }).join('');
+  document.getElementById('modal-overlay').style.display='flex';
+}
+
+function cerrarModal(){
+  document.getElementById('modal-overlay').style.display='none';
+  _tmp=null;
+}
+
+function confirmarDoc(){
+  if(!_tmp) return;
+  docs.push(_tmp); _tmp=null;
+  cerrarModal();
+  ['f-tipo-doc','f-nfactura','f-proveedor','f-monto','f-fecha','f-tienda'].forEach(function(id){
+    document.getElementById(id).value='';
+  });
+  document.getElementById('f-cantidad').value='1';
+  document.getElementById('compra-search').value=''; document.getElementById('f-tipo-compra').value=''; compraSeleccionada=null;
+  document.getElementById('depto-search').value=''; document.getElementById('f-depto').value=''; deptoSeleccionado=null;
+  limpiarAsteriscos(); renderCompras(COMPRAS); renderDeptos(DEPTOS);
+  renderTabla(); actualizarMetrics();
+  showToast('Registro ingresado');
+}
+
+function modoEditar(){
+  if(!_tmp) return;
+  var html='';
+  html+='<div class="medit-group"><label class="medit-label">N° Factura</label>'
+      +'<input class="medit-input" type="text" id="ed-nfactura" value="'+_tmp.nfactura+'"/></div>';
+  html+='<div class="medit-group"><label class="medit-label">Proveedor</label>'
+      +'<input class="medit-input" type="text" id="ed-proveedor" value="'+_tmp.proveedor+'"/></div>';
+  html+='<div class="medit-group"><label class="medit-label">Tipo Compra</label>'
+      +'<div class="medit-dd searchable-wrap">'
+      +'<input class="medit-input searchable-input" type="text" id="ed-compra-s" autocomplete="off" '
+      +'value="'+_tmp.tipoCompra.toUpperCase()+'" '
+      +'oninput="edFiltrarCompra()" onfocus="abrirDropdown('ed-compra-dd')" onblur="setTimeout(function(){document.getElementById('ed-compra-dd').classList.remove('open')},200)"/>'
+      +'<input type="hidden" id="ed-compra-h" value="'+_tmp.tipoCompra+'|'+_tmp.categoria+'"/>'
+      +'<div class="dropdown-list" id="ed-compra-dd"></div>'
+      +'</div></div>';
+  html+='<div class="medit-group"><label class="medit-label">Cantidad</label>'
+      +'<input class="medit-input" type="number" id="ed-cantidad" value="'+_tmp.cantidad+'"/></div>';
+  html+='<div class="medit-group"><label class="medit-label">Total (Q)</label>'
+      +'<input class="medit-input" type="number" id="ed-monto" value="'+_tmp.monto+'" step="0.01"/></div>';
+  html+='<div class="medit-group"><label class="medit-label">Fecha</label>'
+      +'<input class="medit-input" type="text" id="ed-fecha" value="'+_tmp.fecha+'" maxlength="10" '
+      +'oninput="formatearFecha(this)" onkeydown="soloFechaKeys(event)" onblur="completarFecha(this)"/></div>';
+  html+='<div class="medit-group"><label class="medit-label">Departamento</label>'
+      +'<div class="medit-dd searchable-wrap">'
+      +'<input class="medit-input searchable-input" type="text" id="ed-depto-s" autocomplete="off" '
+      +'value="'+_tmp.depto.toUpperCase()+'" '
+      +'oninput="edFiltrarDepto()" onfocus="abrirDropdown('ed-depto-dd')" onblur="setTimeout(function(){document.getElementById('ed-depto-dd').classList.remove('open')},200)"/>'
+      +'<input type="hidden" id="ed-depto-h" value="'+_tmp.depto+'"/>'
+      +'<div class="dropdown-list" id="ed-depto-dd"></div>'
+      +'</div></div>';
+  html+='<div class="medit-group"><label class="medit-label">Tienda</label>'
+      +'<input class="medit-input" type="text" id="ed-tienda" value="'+_tmp.tienda+'"/></div>';
+
+  document.getElementById('modal-body').innerHTML=html;
+  document.getElementById('modal-title').textContent='Editar registro';
+  document.getElementById('modal-btns').innerHTML=
+    '<button class="mbtn mbtn-cancel" onclick="cerrarModal()">✕ Cancelar</button>'
+    +'<button class="mbtn mbtn-save" onclick="guardarEdicion()">💾 Guardar</button>';
+
+  edRenderCompra(COMPRAS);
+  edRenderDepto(DEPTOS);
+}
+
+function edRenderCompra(lista){
+  var dd=document.getElementById('ed-compra-dd'); if(!dd) return;
+  dd.innerHTML='';
+  lista.forEach(function(c){
+    var lbl=c.split('|')[0];
+    var d=document.createElement('div');
+    d.className='dropdown-item';
+    d.textContent=lbl.toUpperCase();
+    d.onmousedown=function(){
+      document.getElementById('ed-compra-s').value=lbl.toUpperCase();
+      document.getElementById('ed-compra-h').value=c;
+      dd.classList.remove('open');
+    };
+    dd.appendChild(d);
+  });
+}
+
+function edRenderDepto(lista){
+  var dd=document.getElementById('ed-depto-dd'); if(!dd) return;
+  dd.innerHTML='';
+  lista.forEach(function(dep){
+    var d=document.createElement('div');
+    d.className='dropdown-item';
+    d.textContent=dep.toUpperCase();
+    d.onmousedown=function(){
+      document.getElementById('ed-depto-s').value=dep.toUpperCase();
+      document.getElementById('ed-depto-h').value=dep;
+      dd.classList.remove('open');
+    };
+    dd.appendChild(d);
+  });
+}
+
+function edFiltrarCompra(){
+  var q=document.getElementById('ed-compra-s').value.toLowerCase();
+  edRenderCompra(COMPRAS.filter(function(c){return c.split('|')[0].toLowerCase().includes(q);}));
+  abrirDropdown('ed-compra-dd');
+}
+
+function edFiltrarDepto(){
+  var q=document.getElementById('ed-depto-s').value.toLowerCase();
+  edRenderDepto(DEPTOS.filter(function(d){return d.toLowerCase().includes(q);}));
+  abrirDropdown('ed-depto-dd');
+}
+
+function guardarEdicion(){
+  if(!_tmp) return;
+  var g=function(id){var e=document.getElementById(id);return e?e.value:'';};
+  _tmp.nfactura  = g('ed-nfactura').trim();
+  _tmp.proveedor = g('ed-proveedor').trim();
+  var cv=g('ed-compra-h');
+  if(cv){var p=cv.split('|');_tmp.tipoCompra=p[0]||_tmp.tipoCompra;_tmp.categoria=p[1]||_tmp.categoria;}
+  _tmp.cantidad  = parseInt(g('ed-cantidad'))||1;
+  _tmp.monto     = parseFloat(g('ed-monto'))||0;
+  _tmp.fecha     = g('ed-fecha').trim();
+  _tmp.depto     = g('ed-depto-h').trim()||g('ed-depto-s').trim();
+  _tmp.tienda    = g('ed-tienda').trim();
+
+  var rows=[
+    ['Área',_tmp.area],['Persona',_tmp.persona],['Tipo Doc',_tmp.tipoDoc],
+    ['N° Factura',_tmp.nfactura],['Proveedor',_tmp.proveedor],
+    ['Tipo Compra',_tmp.tipoCompra],['Categoría',_tmp.categoria],
+    ['Cantidad',_tmp.cantidad],['Total (Q)','Q '+_tmp.monto.toFixed(2)],
+    ['Fecha',_tmp.fecha],['Depto',_tmp.depto],['Tienda',_tmp.tienda]
+  ];
+  document.getElementById('modal-body').innerHTML=rows.map(function(r){
+    return '<div class="modal-row"><span class="modal-lbl">'+r[0]+'</span><span class="modal-val">'+r[1]+'</span></div>';
+  }).join('');
+  document.getElementById('modal-title').textContent='Confirmar registro';
+  document.getElementById('modal-btns').innerHTML=
+    '<button class="mbtn mbtn-cancel" onclick="cerrarModal()">✕ Cancelar</button>'
+    +'<button class="mbtn mbtn-edit" onclick="modoEditar()">✏️ Editar</button>'
+    +'<button class="mbtn mbtn-ok" onclick="confirmarDoc()">✓ Ingresar</button>';
+}
+
 // ── GOOGLE SHEETS ────────────────────────────────────────────────────────────
-const SHEETS_URL = 'https://script.google.com/macros/s/AKfycbzCAZqHVph6xIUcCew9i93SfsHF0Sx0h2MdmxjudIxotCiqLJ4ZBdHpYZqodPAk3yIC/exec';
+const SHEETS_URL = 'https://script.google.com/macros/s/AKfycbyr_a7LvEvT_3ylm_4mwuZOErItuDqPPInptwzYE047ZRLdk3K7KDLBe-ePvPThtMXI/exec';
 
 async function enviarSheets(){
   if(!docs.length){showToast('Sin registros para enviar','#BA7517');return;}
@@ -607,6 +804,7 @@ async function enviarSheets(){
   btn.disabled  = true;
   btn.innerHTML = '<i class="ti ti-loader" style="animation:spin 1s linear infinite;display:inline-block"></i> Enviando...';
 
+  let enviados = 0;
   for(const d of docs){
     const params = new URLSearchParams({
       area, persona,
@@ -621,15 +819,19 @@ async function enviarSheets(){
       depto:      d.depto,
       tienda:     d.tienda
     });
-    const url = SHEETS_URL + '?' + params.toString();
-    const img = new Image();
-    img.src = url;
-    await new Promise(r => setTimeout(r, 1500));
+    try{
+      await fetch(SHEETS_URL + '?' + params.toString(), {
+        method: 'GET',
+        mode:   'no-cors'
+      });
+      enviados++;
+    } catch(e){}
+    await new Promise(r => setTimeout(r, 300));
   }
 
   btn.disabled  = false;
   btn.innerHTML = '<i class="ti ti-brand-google"></i> Enviar a Google Sheets';
-  showToast('✓ '+docs.length+' registro(s) enviados a Google Sheets','#16A34A');
+  showToast('✓ '+enviados+' registro(s) enviados a Google Sheets','#16A34A');
 }
 </script>
 </body>
