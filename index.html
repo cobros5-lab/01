@@ -688,40 +688,65 @@ function confirmarDoc(){
 
 function modoEditar(){
   if(!_tmp) return;
-  var h='';
-  h+='<div class="med-group"><label class="med-label">N° Factura</label>'
-    +'<input class="med-input" type="text" id="ed-nf" value="'+_tmp.nfactura+'"/></div>';
-  h+='<div class="med-group"><label class="med-label">Proveedor</label>'
-    +'<input class="med-input" type="text" id="ed-pv" value="'+_tmp.proveedor+'"/></div>';
-  h+='<div class="med-group"><label class="med-label">Tipo Compra</label>'
-    +'<div class="med-dd searchable-wrap">'
-    +'<input class="med-input searchable-input" type="text" id="ed-cs" autocomplete="off" '
-    +'value="'+_tmp.tipoCompra.toUpperCase()+'" '
-    +'oninput="edFiltrarC()" onfocus="abrirDropdown(&quot;ed-cdd&quot;)" '
-    +'onblur="cerrarEdCDD()"/>'
-    +'<input type="hidden" id="ed-ch" value="'+_tmp.tipoCompra+'|'+_tmp.categoria+'"/>'
-    +'<div class="dropdown-list" id="ed-cdd"></div>'
-    +'</div></div>';
-  h+='<div class="med-group"><label class="med-label">Cantidad</label>'
-    +'<input class="med-input" type="number" id="ed-cant" value="'+_tmp.cantidad+'"/></div>';
-  h+='<div class="med-group"><label class="med-label">Total (Q)</label>'
-    +'<input class="med-input" type="number" id="ed-monto" value="'+_tmp.monto+'" step="0.01"/></div>';
-  h+='<div class="med-group"><label class="med-label">Fecha</label>'
-    +'<input class="med-input" type="text" id="ed-fecha" value="'+_tmp.fecha+'" maxlength="10" '
-    +'oninput="formatearFecha(this)" onkeydown="soloFechaKeys(event)" onblur="completarFecha(this)"/></div>';
-  h+='<div class="med-group"><label class="med-label">Departamento</label>'
-    +'<div class="med-dd searchable-wrap">'
-    +'<input class="med-input searchable-input" type="text" id="ed-ds" autocomplete="off" '
-    +'value="'+_tmp.depto.toUpperCase()+'" '
-    +'oninput="edFiltrarD()" onfocus="abrirDropdown(&quot;ed-ddd&quot;)" '
-    +'onblur="cerrarEdDDD()"/>'
-    +'<input type="hidden" id="ed-dh" value="'+_tmp.depto+'"/>'
-    +'<div class="dropdown-list" id="ed-ddd"></div>'
-    +'</div></div>';
-  h+='<div class="med-group"><label class="med-label">Tienda</label>'
-    +'<input class="med-input" type="text" id="ed-ti" value="'+_tmp.tienda+'"/></div>';
 
-  document.getElementById('modal-body').innerHTML=h;
+  // Construir formulario de edición con createElement (sin problemas de comillas)
+  var box = document.getElementById('modal-body');
+  box.innerHTML = '';
+
+  function campo(id, label, type, val){
+    var g = document.createElement('div'); g.className='med-group';
+    var l = document.createElement('label'); l.className='med-label'; l.textContent=label;
+    var inp = document.createElement('input'); inp.className='med-input';
+    inp.type=type; inp.id=id; inp.value=val;
+    g.appendChild(l); g.appendChild(inp); box.appendChild(g);
+  }
+
+  campo('ed-nf',   'N° Factura', 'text',   _tmp.nfactura);
+  campo('ed-pv',   'Proveedor',  'text',   _tmp.proveedor);
+
+  // Tipo Compra con dropdown
+  var gc = document.createElement('div'); gc.className='med-group';
+  var lc = document.createElement('label'); lc.className='med-label'; lc.textContent='Tipo Compra';
+  var wc = document.createElement('div'); wc.className='med-dd searchable-wrap';
+  var ic = document.createElement('input'); ic.className='med-input searchable-input';
+  ic.type='text'; ic.id='ed-cs'; ic.autocomplete='off'; ic.value=_tmp.tipoCompra.toUpperCase();
+  ic.oninput = function(){ edFiltrarC(); };
+  ic.onfocus = function(){ abrirDropdown('ed-cdd'); };
+  ic.onblur  = function(){ setTimeout(function(){var d=document.getElementById('ed-cdd');if(d)d.classList.remove('open');},200); };
+  var hc = document.createElement('input'); hc.type='hidden'; hc.id='ed-ch'; hc.value=_tmp.tipoCompra+'|'+_tmp.categoria;
+  var dc = document.createElement('div'); dc.className='dropdown-list'; dc.id='ed-cdd';
+  wc.appendChild(ic); wc.appendChild(hc); wc.appendChild(dc);
+  gc.appendChild(lc); gc.appendChild(wc); box.appendChild(gc);
+
+  campo('ed-cant',  'Cantidad',   'number', _tmp.cantidad);
+  campo('ed-monto', 'Total (Q)',  'number', _tmp.monto);
+
+  // Fecha con autocomplete
+  var gf = document.createElement('div'); gf.className='med-group';
+  var lf = document.createElement('label'); lf.className='med-label'; lf.textContent='Fecha';
+  var inf = document.createElement('input'); inf.className='med-input';
+  inf.type='text'; inf.id='ed-fecha'; inf.value=_tmp.fecha; inf.maxLength=10;
+  inf.oninput = function(){ formatearFecha(this); };
+  inf.onkeydown = function(e){ soloFechaKeys(e); };
+  inf.onblur = function(){ completarFecha(this); };
+  gf.appendChild(lf); gf.appendChild(inf); box.appendChild(gf);
+
+  // Departamento con dropdown
+  var gd = document.createElement('div'); gd.className='med-group';
+  var ld = document.createElement('label'); ld.className='med-label'; ld.textContent='Departamento';
+  var wd = document.createElement('div'); wd.className='med-dd searchable-wrap';
+  var id2 = document.createElement('input'); id2.className='med-input searchable-input';
+  id2.type='text'; id2.id='ed-ds'; id2.autocomplete='off'; id2.value=_tmp.depto.toUpperCase();
+  id2.oninput = function(){ edFiltrarD(); };
+  id2.onfocus = function(){ abrirDropdown('ed-ddd'); };
+  id2.onblur  = function(){ setTimeout(function(){var d=document.getElementById('ed-ddd');if(d)d.classList.remove('open');},200); };
+  var hd = document.createElement('input'); hd.type='hidden'; hd.id='ed-dh'; hd.value=_tmp.depto;
+  var dd2 = document.createElement('div'); dd2.className='dropdown-list'; dd2.id='ed-ddd';
+  wd.appendChild(id2); wd.appendChild(hd); wd.appendChild(dd2);
+  gd.appendChild(ld); gd.appendChild(wd); box.appendChild(gd);
+
+  campo('ed-ti', 'Tienda', 'text', _tmp.tienda);
+
   document.getElementById('modal-title').textContent='Editar registro';
   document.getElementById('modal-sub').textContent='Modifica los campos que necesites';
   document.getElementById('modal-btns').innerHTML=
@@ -730,9 +755,6 @@ function modoEditar(){
 
   edRC(COMPRAS); edRD(DEPTOS);
 }
-
-function cerrarEdCDD(){ setTimeout(function(){var d=document.getElementById('ed-cdd');if(d)d.classList.remove('open');},200); }
-function cerrarEdDDD(){ setTimeout(function(){var d=document.getElementById('ed-ddd');if(d)d.classList.remove('open');},200); }
 
 function edRC(lista){
   var dd=document.getElementById('ed-cdd'); if(!dd) return; dd.innerHTML='';
@@ -778,12 +800,18 @@ function guardarEd(){
   _tmp.nfactura  = g('ed-nf').trim();
   _tmp.proveedor = g('ed-pv').trim();
   var cv=g('ed-ch');
-  if(cv){var p=cv.split('|');_tmp.tipoCompra=p[0]||_tmp.tipoCompra;_tmp.categoria=p[1]||_tmp.categoria;}
-  _tmp.cantidad  = parseInt(g('ed-cant'))||1;
-  _tmp.monto     = parseFloat(g('ed-monto'))||0;
-  _tmp.fecha     = g('ed-fecha').trim();
-  _tmp.depto     = g('ed-dh').trim()||g('ed-ds').trim();
-  _tmp.tienda    = g('ed-ti').trim();
+  if(cv&&cv.indexOf('|')>-1){
+    var p=cv.split('|');
+    _tmp.tipoCompra=p[0]||_tmp.tipoCompra;
+    _tmp.categoria=p[1]||_tmp.categoria;
+  }
+  _tmp.cantidad = parseInt(g('ed-cant'))||1;
+  _tmp.monto    = parseFloat(g('ed-monto'))||0;
+  _tmp.fecha    = g('ed-fecha').trim();
+  var deptoH = g('ed-dh').trim();
+  var deptoS = g('ed-ds').trim();
+  _tmp.depto  = deptoH||deptoS;
+  _tmp.tienda = g('ed-ti').trim();
   mostrarResumen();
 }
 
