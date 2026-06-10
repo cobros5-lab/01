@@ -130,7 +130,7 @@ tr:hover td{background:#F8FAFC}
       <div class="field-label-wrap"><label>Área / Departamento</label><span class="asterisk" id="ast-area">*</span></div>
       <select id="f-area" onchange="cargarPersonas()">
         <option value="">Selecciona área...</option>
-        <option>Ventas</option><option>Impulso</option><option>Bodega</option>
+        <option value="Ventas">Ventas</option><option value="Impulso">Impulso</option><option value="Bodega">Bodega</option>
       </select>
     </div>
     <div class="form-group">
@@ -287,8 +287,24 @@ function cargarPersonas(){
   const area=document.getElementById('f-area').value;
   const sel=document.getElementById('f-persona');
   sel.innerHTML='<option value="">Selecciona persona...</option>';
-  if(PERSONAS[area]) PERSONAS[area].forEach(p=>{const o=document.createElement('option');o.value=p;o.textContent=p;sel.appendChild(o);});
+  if(PERSONAS[area]){
+    PERSONAS[area].forEach(p=>{
+      const o=document.createElement('option');
+      o.value=p; o.textContent=p;
+      sel.appendChild(o);
+    });
+  }
 }
+
+// Detectar cambio de área con polling como fallback
+let _lastArea = '';
+setInterval(function(){
+  const area = document.getElementById('f-area').value;
+  if(area !== _lastArea){
+    _lastArea = area;
+    cargarPersonas();
+  }
+}, 200);
 
 // ── Fecha autocomplete ──
 function soloFechaKeys(e){
@@ -472,7 +488,7 @@ function validar(){
   });
   if(hayError){
     document.getElementById('msg-error').style.display='inline-flex';
-    if(primerVacio){primerVacio.focus();primerVacio.scrollIntoView({behavior:'smooth',block:'center'});}
+    if(primerVacio){primerVacio.scrollIntoView({behavior:'smooth',block:'center'});}
   }
   return !hayError;
 }
