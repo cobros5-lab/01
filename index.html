@@ -240,7 +240,7 @@ tr:hover td{background:#F8FAFC}
 <div class="footer">Liquidación de Documentos — Procesado localmente en tu navegador</div>
 </div>
 
-<div class="modal-overlay" id="modal-overlay" onclick="if(event.target===this)cerrarModal()">
+<div class="modal-overlay" id="modal-overlay">
   <div class="modal-box">
     <p class="modal-title" id="modal-title">Confirmar registro</p>
     <p class="modal-sub" id="modal-sub">Revisa los datos antes de ingresar</p>
@@ -420,9 +420,6 @@ function autoSelectDepto(){
 }
 
 document.addEventListener('click',e=>{
-  // No interferir con selects normales ni con el modal
-  if(e.target.tagName==='SELECT' || e.target.tagName==='OPTION') return;
-  if(e.target.closest('.modal-box')) return;
   if(!e.target.closest('.searchable-wrap')) document.querySelectorAll('.dropdown-list').forEach(d=>d.classList.remove('open'));
 });
 
