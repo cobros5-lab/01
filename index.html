@@ -697,8 +697,8 @@ function modoEditar(){
     +'<div class="med-dd searchable-wrap">'
     +'<input class="med-input searchable-input" type="text" id="ed-cs" autocomplete="off" '
     +'value="'+_tmp.tipoCompra.toUpperCase()+'" '
-    +'oninput="edFiltrarC()" onfocus="abrirDropdown('ed-cdd')" '
-    +'onblur="setTimeout(function(){var d=document.getElementById('ed-cdd');if(d)d.classList.remove('open')},200)"/>'
+    +'oninput="edFiltrarC()" onfocus="abrirDropdown(&quot;ed-cdd&quot;)" '
+    +'onblur="cerrarEdCDD()"/>'
     +'<input type="hidden" id="ed-ch" value="'+_tmp.tipoCompra+'|'+_tmp.categoria+'"/>'
     +'<div class="dropdown-list" id="ed-cdd"></div>'
     +'</div></div>';
@@ -713,8 +713,8 @@ function modoEditar(){
     +'<div class="med-dd searchable-wrap">'
     +'<input class="med-input searchable-input" type="text" id="ed-ds" autocomplete="off" '
     +'value="'+_tmp.depto.toUpperCase()+'" '
-    +'oninput="edFiltrarD()" onfocus="abrirDropdown('ed-ddd')" '
-    +'onblur="setTimeout(function(){var d=document.getElementById('ed-ddd');if(d)d.classList.remove('open')},200)"/>'
+    +'oninput="edFiltrarD()" onfocus="abrirDropdown(&quot;ed-ddd&quot;)" '
+    +'onblur="cerrarEdDDD()"/>'
     +'<input type="hidden" id="ed-dh" value="'+_tmp.depto+'"/>'
     +'<div class="dropdown-list" id="ed-ddd"></div>'
     +'</div></div>';
@@ -730,6 +730,9 @@ function modoEditar(){
 
   edRC(COMPRAS); edRD(DEPTOS);
 }
+
+function cerrarEdCDD(){ setTimeout(function(){var d=document.getElementById('ed-cdd');if(d)d.classList.remove('open');},200); }
+function cerrarEdDDD(){ setTimeout(function(){var d=document.getElementById('ed-ddd');if(d)d.classList.remove('open');},200); }
 
 function edRC(lista){
   var dd=document.getElementById('ed-cdd'); if(!dd) return; dd.innerHTML='';
