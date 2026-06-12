@@ -287,7 +287,7 @@ tr:hover td{background:#F8FAFC}
 <div class="toast" id="toast"><i class="ti ti-check"></i> <span id="toast-msg">Listo</span></div>
 
 <script>
-const SHEETS_URL = 'https://script.google.com/macros/s/AKfycbySDJw6gOHzoPn7a7_DZqLquxP4epM86iY2HydMAYR-rlzdyV4s3vmlrLaZtDajMDZE/exec';
+const SHEETS_URL = 'https://script.google.com/macros/s/AKfycbz7BuL92Qcl1F198Ug71dT59aoINqTIeaWOfKCqBF0WSB9JFaveZQYacTvSBheb0kI1/exec';
 
 // ── Datos desde Sheets ────────────────────────────────────────────────
 let ASESORES_SHEETS = [];
@@ -721,7 +721,8 @@ async function enviarSheets(){
         nFactura: d.nfactura, proveedor: d.proveedor,
         tipoCompra: d.tipoCompra, categoria: d.categoria,
         cantidad: d.cantidad, monto: d.monto, fecha: d.fecha,
-        depto: d.depto, tienda: d.tienda, fotoUrl: fotoUrl
+        depto: d.depto, tienda: d.tienda, fotoUrl: fotoUrl,
+        email: gUserEmail
       });
       enviados++;
     } catch(e) {}
@@ -737,17 +738,26 @@ async function enviarSheets(){
 const CLIENT_ID   = '830498581964-g1iq6ffpvekhbjup3qrppv2mi5ft6jcb.apps.googleusercontent.com';
 const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file';
 const FOLDER_ID   = '1y1O0dfrKtuI4P2c9j0YYce8QrvsQ9IZa';
-let   gAccessToken = '';
+let gAccessToken = '';
+let gUserEmail   = '';
 
 function iniciarLoginGoogle() {
   const client = google.accounts.oauth2.initTokenClient({
     client_id: CLIENT_ID,
-    scope:     DRIVE_SCOPE,
-    callback:  function(resp) {
+    scope:     DRIVE_SCOPE + ' https://www.googleapis.com/auth/userinfo.email',
+    callback:  async function(resp) {
       if (resp.error) { showToast('Error al autenticar con Google','#E24B4A'); return; }
       gAccessToken = resp.access_token;
+      // Obtener email del usuario
+      try {
+        const r    = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+          headers: { Authorization: 'Bearer ' + gAccessToken }
+        });
+        const info = await r.json();
+        gUserEmail = info.email || '';
+      } catch(e) {}
       document.getElementById('btn-google-login').style.display = 'none';
-      document.getElementById('google-status').textContent = '✅ Google Drive conectado';
+      document.getElementById('google-status').textContent = '✅ ' + (gUserEmail || 'Drive conectado');
       document.getElementById('google-status').style.color = '#6EE7B7';
       showToast('Google Drive conectado','#1D9E75');
     }
