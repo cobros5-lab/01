@@ -788,7 +788,7 @@ async function subirFotoDrive(base64, mime, nombre) {
       headers: { Authorization: 'Bearer ' + gAccessToken, 'Content-Type': 'application/json' },
       body:    JSON.stringify({ role: 'reader', type: 'anyone' })
     });
-    return 'https://drive.google.com/uc?id=' + data.id;
+    return 'https://lh3.googleusercontent.com/d/' + data.id;
   } catch(e) {
     return '';
   }
