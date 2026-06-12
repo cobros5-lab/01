@@ -8,6 +8,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.44.0/tabler-icons.min.css">
+<script src="https://accounts.google.com/gsi/client" async></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0A1628;color:#1E293B;min-height:100vh}
@@ -41,7 +42,8 @@ label{font-size:13px;color:#1E3A5F;font-weight:600}
 label.mint{color:#065F46}
 input,select{width:100%;padding:8px 12px;border:1px solid #93C5FD;border-radius:8px;font-size:13px;color:#1E293B;background:#EFF6FF;outline:none;transition:border .15s}
 input:focus,select:focus{border-color:#185FA5;box-shadow:0 0 0 3px rgba(24,95,165,.15);background:#fff}
-input::placeholder{color:#94A3B8}
+input::placeholder{color:#94A3B8;text-transform:none}
+input[type="text"]{text-transform:uppercase}
 .mint-input{border-color:#6EE7B7!important;background:#ECFDF5!important}
 .mint-input:focus{border-color:#059669!important;box-shadow:0 0 0 3px rgba(5,150,105,.15)!important;background:#fff!important}
 .field-error{border-color:#E24B4A!important;background:#FFF5F5!important}
@@ -120,6 +122,10 @@ tr:hover td{background:#F8FAFC}
   <div class="sync-badge sync-loading" id="sync-badge">
     <i class="ti ti-loader" style="animation:spin 1s linear infinite;display:inline-block"></i> Cargando datos...
   </div>
+  <button id="btn-google-login" onclick="iniciarLoginGoogle()" style="margin-left:8px;background:#fff;border:1px solid #E2E8F0;color:#185FA5;padding:5px 12px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:5px">
+    <i class="ti ti-brand-google"></i> Conectar Drive
+  </button>
+  <span id="google-status" style="margin-left:8px;font-size:11px;color:#93C5FD"></span>
 </div>
 
 <div class="metrics">
@@ -222,6 +228,22 @@ tr:hover td{background:#F8FAFC}
     </div>
   </div>
 
+  <div class="section-label-mint">Comprobante</div>
+  <div class="form-group full">
+    <div class="field-label-wrap"><label class="mint">Foto del comprobante</label><span class="asterisk" id="ast-foto" style="display:none">*</span></div>
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <label for="f-foto" style="display:inline-flex;align-items:center;gap:6px;padding:8px 16px;background:#059669;color:#fff;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600">
+        <i class="ti ti-camera"></i> Tomar / Subir foto
+      </label>
+      <input type="file" id="f-foto" accept="image/*" capture="environment" style="display:none" onchange="previsualizarFoto(this)" />
+      <span id="foto-nombre" style="font-size:12px;color:#065F46;font-weight:500"></span>
+    </div>
+    <div id="foto-preview" style="display:none;margin-top:8px">
+      <img id="foto-img" style="max-width:180px;max-height:120px;border-radius:8px;border:2px solid #34D399;object-fit:cover" />
+      <button onclick="quitarFoto()" style="display:block;margin-top:4px;background:none;border:none;color:#E24B4A;font-size:12px;cursor:pointer">✕ Quitar foto</button>
+    </div>
+  </div>
+
   <div class="btn-row">
     <button class="btn btn-primary" onclick="validarDoc()"><i class="ti ti-check"></i> Validar registro</button>
     <span class="error-msg" id="msg-error"><i class="ti ti-alert-circle"></i> Completa los campos marcados</span>
@@ -265,36 +287,64 @@ tr:hover td{background:#F8FAFC}
 <div class="toast" id="toast"><i class="ti ti-check"></i> <span id="toast-msg">Listo</span></div>
 
 <script>
-const SHEETS_URL = 'https://script.google.com/macros/s/AKfycbyr_a7LvEvT_3ylm_4mwuZOErItuDqPPInptwzYE047ZRLdk3K7KDLBe-ePvPThtMXI/exec';
+const SHEETS_URL = 'https://script.google.com/macros/s/AKfycbySDJw6gOHzoPn7a7_DZqLquxP4epM86iY2HydMAYR-rlzdyV4s3vmlrLaZtDajMDZE/exec';
 
 // ── Datos desde Sheets ────────────────────────────────────────────────
 let ASESORES_SHEETS = [];
 let TIENDAS_SHEETS  = [];
 
-async function cargarDatosSheets() {
+function cargarDatosSheets() {
   const badge = document.getElementById('sync-badge');
-  try {
-    const res  = await fetch(SHEETS_URL + '?action=getDatos');
-    const data = await res.json();
+  const cbName = 'cb_' + Date.now();
+
+  const script = document.createElement('script');
+  script.src = SHEETS_URL + '?action=getDatos&callback=' + cbName;
+
+  window[cbName] = function(data) {
+    delete window[cbName];
+    document.body.removeChild(script);
     if (data.status === 'OK') {
+      // asesores viene como [{nombre, depto}]
       ASESORES_SHEETS = data.asesores || [];
       TIENDAS_SHEETS  = data.tiendas  || [];
-      renderPersonas(ASESORES_SHEETS);
+      renderPersonas(ASESORES_SHEETS.map(a => a.nombre || a));
       renderTiendas(TIENDAS_SHEETS);
       badge.className = 'sync-badge sync-ok';
       badge.innerHTML = '<i class="ti ti-circle-check"></i> ' + ASESORES_SHEETS.length + ' asesores · ' + TIENDAS_SHEETS.length + ' tiendas';
+      // Cargar áreas dinámicamente
+      if (data.areas && data.areas.length) cargarAreas(data.areas);
     } else {
-      throw new Error(data.msg || 'Error desconocido');
+      usarDatosLocales(badge);
     }
-  } catch(e) {
-    badge.className = 'sync-badge sync-err';
-    badge.innerHTML = '<i class="ti ti-alert-circle"></i> Sin conexión — datos locales';
-    // Fallback a datos locales
-    ASESORES_SHEETS = ['Angela Luna','Anibal Castro','Claudia Morales','Karen Esquite','Karin Duarte','Kimberly Medina','Mindy Marroquin','Xiomara De Leon'];
-    TIENDAS_SHEETS  = [];
-    renderPersonas(ASESORES_SHEETS);
-    renderTiendas(TIENDAS_SHEETS);
-  }
+  };
+
+  script.onerror = function() {
+    delete window[cbName];
+    document.body.removeChild(script);
+    usarDatosLocales(badge);
+  };
+
+  document.body.appendChild(script);
+}
+
+function cargarAreas(areas) {
+  const sel = document.getElementById('f-area');
+  sel.innerHTML = '<option value="">Selecciona área...</option>';
+  areas.forEach(function(a) {
+    const o = document.createElement('option');
+    o.value = a;
+    o.textContent = a;
+    sel.appendChild(o);
+  });
+}
+
+function usarDatosLocales(badge) {
+  badge.className = 'sync-badge sync-err';
+  badge.innerHTML = '<i class="ti ti-alert-circle"></i> Sin conexión — datos locales';
+  ASESORES_SHEETS = [{nombre:'Angela Luna',depto:'Ventas'},{nombre:'Anibal Castro',depto:'Ventas'},{nombre:'Claudia Morales',depto:'Ventas'},{nombre:'Karen Esquite',depto:'Ventas'},{nombre:'Karin Duarte',depto:'Ventas'},{nombre:'Kimberly Medina',depto:'Ventas'},{nombre:'Mindy Marroquin',depto:'Ventas'},{nombre:'Xiomara De Leon',depto:'Ventas'}];
+  TIENDAS_SHEETS = [];
+  renderPersonas(ASESORES_SHEETS.map(a => a.nombre));
+  renderTiendas(TIENDAS_SHEETS);
 }
 
 // ── Personas buscable ─────────────────────────────────────────────────
@@ -312,16 +362,22 @@ function renderPersonas(lista) {
 }
 
 function filtrarPersonas() {
-  const q = document.getElementById('persona-search').value.toLowerCase();
-  renderPersonas(ASESORES_SHEETS.filter(p => p.toLowerCase().includes(q)));
+  const q    = document.getElementById('persona-search').value.toLowerCase();
+  const area = document.getElementById('f-area').value;
+  let lista  = ASESORES_SHEETS.map(a => a.nombre || a);
+  if (area) lista = ASESORES_SHEETS.filter(a => (a.depto||'').toLowerCase() === area.toLowerCase()).map(a => a.nombre || a);
+  renderPersonas(lista.filter(p => p.toLowerCase().includes(q)));
   abrirDropdown('persona-dropdown');
 }
 
 function filtrarPersonasPorArea() {
-  // Al cambiar área limpia la selección pero mantiene todos los asesores de Sheets
+  const area = document.getElementById('f-area').value;
   document.getElementById('persona-search').value = '';
   document.getElementById('f-persona').value = '';
-  renderPersonas(ASESORES_SHEETS);
+  const lista = area
+    ? ASESORES_SHEETS.filter(a => (a.depto||'').toLowerCase() === area.toLowerCase()).map(a => a.nombre || a)
+    : ASESORES_SHEETS.map(a => a.nombre || a);
+  renderPersonas(lista);
 }
 
 function seleccionarPersona(p) {
@@ -360,7 +416,11 @@ function filtrarTiendas() {
   const q = document.getElementById('tienda-search').value.toLowerCase();
   const filtradas = TIENDAS_SHEETS.filter(t => t.toLowerCase().includes(q));
   renderTiendas(filtradas.length ? filtradas : TIENDAS_SHEETS);
-  abrirDropdown('tienda-dropdown');
+  if (filtradas.length === 1) {
+    seleccionarTienda(filtradas[0]);
+  } else {
+    abrirDropdown('tienda-dropdown');
+  }
 }
 
 function seleccionarTienda(t) {
@@ -372,14 +432,28 @@ function seleccionarTienda(t) {
 
 function autoSelectTienda() {
   setTimeout(() => {
-    // Si no hay selección guardada, usar el texto escrito
     if (!document.getElementById('f-tienda').value) {
       const txt = document.getElementById('tienda-search').value.trim();
-      if (txt) document.getElementById('f-tienda').value = txt;
+      const exacta = TIENDAS_SHEETS.find(t => t.toLowerCase() === txt.toLowerCase());
+      if (exacta) seleccionarTienda(exacta);
+      else if (txt) document.getElementById('f-tienda').value = txt;
     }
     document.getElementById('tienda-dropdown').classList.remove('open');
   }, 180);
 }
+
+// ── Scroll al campo activo en móvil ──────────────────────────────────
+document.addEventListener('DOMContentLoaded', function() {
+  document.querySelectorAll('input, select').forEach(function(el) {
+    el.addEventListener('focus', function() {
+      if (window.innerWidth <= 768) {
+        setTimeout(function() {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 300);
+      }
+    });
+  });
+});
 
 // ── Datos fijos ───────────────────────────────────────────────────────
 const COMPRAS=[
@@ -436,9 +510,73 @@ const CAMPOS=[
   {id:'f-tienda',ast:'ast-tienda',type:'hidden',searchId:'tienda-search'},
 ];
 
-function limpiarAsteriscos(){CAMPOS.forEach(c=>{document.getElementById(c.ast).style.display='none';const el=document.getElementById(c.searchId||c.id);if(el){el.classList.remove('field-error','err');}});document.getElementById('msg-error').style.display='none';}
+// Datos de foto en memoria
+let fotoBase64  = '';
+let fotoMime    = '';
+let fotoNombre  = '';
 
-function validar(){let primerVacio=null;let hayError=false;CAMPOS.forEach(c=>{const val=document.getElementById(c.id).value.trim();const ast=document.getElementById(c.ast);const visualId=c.searchId||c.id;const el=document.getElementById(visualId);if(!val){ast.style.display='inline';if(el){el.classList.add(c.searchId?'err':'field-error');}if(!primerVacio)primerVacio=document.getElementById(visualId);hayError=true;}else{ast.style.display='none';if(el){el.classList.remove('field-error','err');}}});if(hayError){document.getElementById('msg-error').style.display='inline-flex';if(primerVacio){primerVacio.focus();primerVacio.scrollIntoView({behavior:'smooth',block:'center'});}}return!hayError;}
+function previsualizarFoto(input) {
+  const file = input.files[0];
+  if (!file) return;
+  fotoMime   = file.type;
+  fotoNombre = file.name;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    fotoBase64 = e.target.result;
+    document.getElementById('foto-img').src = fotoBase64;
+    document.getElementById('foto-preview').style.display = 'block';
+    document.getElementById('foto-nombre').textContent = '✅ ' + file.name;
+    document.getElementById('ast-foto').style.display = 'none';
+  };
+  reader.readAsDataURL(file);
+}
+
+function quitarFoto() {
+  fotoBase64 = ''; fotoMime = ''; fotoNombre = '';
+  document.getElementById('f-foto').value = '';
+  document.getElementById('foto-preview').style.display = 'none';
+  document.getElementById('foto-nombre').textContent = '';
+}
+
+function limpiarAsteriscos(){
+  CAMPOS.forEach(c=>{
+    document.getElementById(c.ast).style.display='none';
+    const el=document.getElementById(c.searchId||c.id);
+    if(el){el.classList.remove('field-error','err');}
+  });
+  document.getElementById('ast-foto').style.display='none';
+  document.getElementById('msg-error').style.display='none';
+}
+
+function validar(){
+  let primerVacio=null;let hayError=false;
+  CAMPOS.forEach(c=>{
+    const val=document.getElementById(c.id).value.trim();
+    const ast=document.getElementById(c.ast);
+    const visualId=c.searchId||c.id;
+    const el=document.getElementById(visualId);
+    if(!val){
+      ast.style.display='inline';
+      if(el){el.classList.add(c.searchId?'err':'field-error');}
+      if(!primerVacio)primerVacio=document.getElementById(visualId);
+      hayError=true;
+    }else{
+      ast.style.display='none';
+      if(el){el.classList.remove('field-error','err');}
+    }
+  });
+  // Validar foto
+  if(!fotoBase64){
+    document.getElementById('ast-foto').style.display='inline';
+    if(!primerVacio) primerVacio=document.getElementById('f-foto');
+    hayError=true;
+  }
+  if(hayError){
+    document.getElementById('msg-error').style.display='inline-flex';
+    if(primerVacio){primerVacio.scrollIntoView({behavior:'smooth',block:'center'});}
+  }
+  return !hayError;
+}
 
 // ── Helpers ───────────────────────────────────────────────────────────
 const fmtQ=n=>'Q '+parseFloat(n).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,',');
@@ -481,12 +619,16 @@ function cerrarModal(){document.getElementById('modal-overlay').style.display='n
 
 function confirmarDoc(){
   if(!_tmp)return;
+  _tmp.fotoBase64  = fotoBase64;
+  _tmp.fotoMime    = fotoMime;
+  _tmp.fotoNombre  = fotoNombre;
   docs.push(_tmp);_tmp=null;cerrarModal();
   ['f-tipo-doc','f-nfactura','f-proveedor','f-monto','f-fecha'].forEach(function(id){document.getElementById(id).value='';});
   document.getElementById('f-cantidad').value='1';
   document.getElementById('compra-search').value='';document.getElementById('f-tipo-compra').value='';
   document.getElementById('depto-search').value='';document.getElementById('f-depto').value='';
   document.getElementById('tienda-search').value='';document.getElementById('f-tienda').value='';
+  quitarFoto();
   limpiarAsteriscos();renderCompras(COMPRAS);renderDeptos(DEPTOS);renderTiendas(TIENDAS_SHEETS);
   renderTabla();actualizarMetrics();showToast('Registro ingresado');
 }
@@ -517,19 +659,129 @@ function exportarExcel(){if(!docs.length){showToast('Sin registros para exportar
 function exportarPDF(){if(!docs.length){showToast('Sin registros para exportar','#BA7517');return;}const{jsPDF}=window.jspdf;const doc2=new jsPDF({orientation:'landscape'});const{area,persona}=getInfoHeader();const total=docs.reduce((s,d)=>s+d.monto,0);const unidades=docs.reduce((s,d)=>s+d.cantidad,0);const fecha_rep=new Date().toLocaleDateString('es-GT');doc2.setFillColor(24,95,165);doc2.rect(0,0,297,24,'F');doc2.setFontSize(14);doc2.setFont('helvetica','bold');doc2.setTextColor(255,255,255);doc2.text('Reporte de Liquidación de Documentos',14,11);doc2.setFontSize(9);doc2.setFont('helvetica','normal');doc2.text('Área: '+area+'   |   Persona: '+persona+'   |   Fecha: '+fecha_rep+'   |   Docs: '+docs.length+'   |   Total Liquidado: '+fmtQ(total),14,19);doc2.setTextColor(0,0,0);doc2.autoTable({startY:28,head:[['#','Tipo','N° Factura','Proveedor','Tipo Compra','Cat.','Cant.','Total (Q)','Fecha','Depto','Tienda']],body:docs.map((d,i)=>[i+1,d.tipoDoc,d.nfactura,d.proveedor,d.tipoCompra,d.categoria,d.cantidad,fmtQ(d.monto),d.fecha,d.depto,d.tienda]),foot:[['','','','','','','Unid: '+unidades,fmtQ(total),'','','TOTAL']],styles:{fontSize:7.5,cellPadding:2.5},headStyles:{fillColor:[24,95,165],textColor:255,fontStyle:'bold'},footStyles:{fillColor:[29,158,117],textColor:255,fontStyle:'bold'},alternateRowStyles:{fillColor:[245,248,252]},columnStyles:{0:{cellWidth:7},1:{cellWidth:14},2:{cellWidth:18},3:{cellWidth:30},4:{cellWidth:36},5:{cellWidth:18},6:{cellWidth:10,halign:'center'},7:{cellWidth:20,halign:'right'},8:{cellWidth:18},9:{cellWidth:22},10:{cellWidth:32}}});const pages=doc2.internal.getNumberOfPages();for(let i=1;i<=pages;i++){doc2.setPage(i);doc2.setFontSize(8);doc2.setTextColor(150);doc2.text('Página '+i+' de '+pages,14,205);doc2.text('Generado el '+fecha_rep,148,205,{align:'center'});}doc2.save('Liquidacion_'+persona.replace(/ /g,'_')+'_'+new Date().toISOString().slice(0,10)+'.pdf');showToast('PDF generado');}
 
 // ── Google Sheets envío ───────────────────────────────────────────────
+function jsonpCall(params) {
+  return new Promise(function(resolve) {
+    const cbName = 'cb_' + Date.now() + '_' + Math.random().toString(36).slice(2);
+    const script = document.createElement('script');
+    const qs = new URLSearchParams(params).toString();
+    script.src = SHEETS_URL + '?' + qs + '&callback=' + cbName;
+    window[cbName] = function(data) {
+      delete window[cbName];
+      if (document.body.contains(script)) document.body.removeChild(script);
+      resolve(data);
+    };
+    script.onerror = function() {
+      delete window[cbName];
+      if (document.body.contains(script)) document.body.removeChild(script);
+      resolve({ status: 'ERROR' });
+    };
+    document.body.appendChild(script);
+  });
+}
+
+async function subirFotoPost(d) {
+  if (!d.fotoBase64) return '';
+  try {
+    const res = await fetch(SHEETS_URL, {
+      method: 'POST',
+      body: JSON.stringify({
+        area: d.area, persona: d.persona, tipoDoc: d.tipoDoc,
+        nFactura: d.nfactura, proveedor: d.proveedor,
+        tipoCompra: d.tipoCompra, categoria: d.categoria,
+        cantidad: d.cantidad, monto: d.monto, fecha: d.fecha,
+        depto: d.depto, tienda: d.tienda,
+        fotoBase64: d.fotoBase64, fotoMime: d.fotoMime, fotoNombre: d.fotoNombre
+      })
+    });
+    const json = await res.json();
+    return json.fotoUrl || '';
+  } catch(e) {
+    return '';
+  }
+}
+
 async function enviarSheets(){
   if(!docs.length){showToast('Sin registros para enviar','#BA7517');return;}
-  const{area,persona}=getInfoHeader();
   const btn=document.getElementById('btn-sheets');
-  btn.disabled=true;btn.innerHTML='<i class="ti ti-loader" style="animation:spin 1s linear infinite;display:inline-block"></i> Enviando...';
+  btn.disabled=true;
+  btn.innerHTML='<i class="ti ti-loader" style="animation:spin 1s linear infinite;display:inline-block"></i> Enviando...';
   let enviados=0;
-  for(const d of docs){
-    const params=new URLSearchParams({area,persona,tipoDoc:d.tipoDoc,nFactura:d.nfactura,proveedor:d.proveedor,tipoCompra:d.tipoCompra,categoria:d.categoria,cantidad:d.cantidad,monto:d.monto,fecha:d.fecha,depto:d.depto,tienda:d.tienda});
-    try{await fetch(SHEETS_URL+'?'+params.toString(),{method:'GET',mode:'no-cors'});enviados++;}catch(e){}
-    await new Promise(r=>setTimeout(r,300));
+
+  for(let i=0; i<docs.length; i++){
+    const d = docs[i];
+    btn.innerHTML='<i class="ti ti-loader" style="animation:spin 1s linear infinite;display:inline-block"></i> Enviando '+(i+1)+'/'+docs.length+'...';
+    try {
+      let fotoUrl = '';
+      if (d.fotoBase64 && gAccessToken) {
+        fotoUrl = await subirFotoDrive(d.fotoBase64, d.fotoMime, d.fotoNombre);
+      }
+      await jsonpCall({
+        action: 'guardar',
+        area: d.area, persona: d.persona, tipoDoc: d.tipoDoc,
+        nFactura: d.nfactura, proveedor: d.proveedor,
+        tipoCompra: d.tipoCompra, categoria: d.categoria,
+        cantidad: d.cantidad, monto: d.monto, fecha: d.fecha,
+        depto: d.depto, tienda: d.tienda, fotoUrl: fotoUrl
+      });
+      enviados++;
+    } catch(e) {}
+    await new Promise(r=>setTimeout(r,500));
   }
-  btn.disabled=false;btn.innerHTML='<i class="ti ti-brand-google"></i> Enviar a Google Sheets';
-  showToast('✓ '+enviados+' registro(s) enviados a Google Sheets','#16A34A');
+
+  btn.disabled=false;
+  btn.innerHTML='<i class="ti ti-brand-google"></i> Enviar a Google Sheets';
+  showToast('✓ '+enviados+' registro(s) enviados','#16A34A');
+}
+
+// ── Google OAuth + Drive Upload ───────────────────────────────────────
+const CLIENT_ID   = '830498581964-g1iq6ffpvekhbjup3qrppv2mi5ft6jcb.apps.googleusercontent.com';
+const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file';
+const FOLDER_ID   = '1y1O0dfrKtuI4P2c9j0YYce8QrvsQ9IZa';
+let   gAccessToken = '';
+
+function iniciarLoginGoogle() {
+  const client = google.accounts.oauth2.initTokenClient({
+    client_id: CLIENT_ID,
+    scope:     DRIVE_SCOPE,
+    callback:  function(resp) {
+      if (resp.error) { showToast('Error al autenticar con Google','#E24B4A'); return; }
+      gAccessToken = resp.access_token;
+      document.getElementById('btn-google-login').style.display = 'none';
+      document.getElementById('google-status').textContent = '✅ Google Drive conectado';
+      document.getElementById('google-status').style.color = '#6EE7B7';
+      showToast('Google Drive conectado','#1D9E75');
+    }
+  });
+  client.requestAccessToken();
+}
+
+async function subirFotoDrive(base64, mime, nombre) {
+  if (!gAccessToken) return '';
+  try {
+    const raw     = base64.indexOf(',') > -1 ? base64.split(',')[1] : base64;
+    const bytes   = Uint8Array.from(atob(raw), c => c.charCodeAt(0));
+    const blob    = new Blob([bytes], { type: mime || 'image/jpeg' });
+    const meta    = JSON.stringify({ name: nombre || ('foto_'+Date.now()+'.jpg'), parents: [FOLDER_ID] });
+    const form    = new FormData();
+    form.append('metadata', new Blob([meta], { type: 'application/json' }));
+    form.append('file', blob);
+    const res     = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id', {
+      method:  'POST',
+      headers: { Authorization: 'Bearer ' + gAccessToken },
+      body:    form
+    });
+    const data = await res.json();
+    if (!data.id) return '';
+    // Hacer el archivo público
+    await fetch('https://www.googleapis.com/drive/v3/files/' + data.id + '/permissions', {
+      method:  'POST',
+      headers: { Authorization: 'Bearer ' + gAccessToken, 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ role: 'reader', type: 'anyone' })
+    });
+    return 'https://drive.google.com/uc?id=' + data.id;
+  } catch(e) {
+    return '';
+  }
 }
 
 // ── Init ──────────────────────────────────────────────────────────────
