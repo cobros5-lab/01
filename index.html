@@ -744,15 +744,13 @@ let gUserEmail   = '';
 function iniciarLoginGoogle() {
   const client = google.accounts.oauth2.initTokenClient({
     client_id: CLIENT_ID,
-    scope:     DRIVE_SCOPE + ' https://www.googleapis.com/auth/userinfo.email',
+    scope:     DRIVE_SCOPE,
     callback:  async function(resp) {
       if (resp.error) { showToast('Error al autenticar con Google','#E24B4A'); return; }
       gAccessToken = resp.access_token;
-      // Obtener email del usuario
+      // Obtener email via tokeninfo
       try {
-        const r    = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
-          headers: { Authorization: 'Bearer ' + gAccessToken }
-        });
+        const r    = await fetch('https://www.googleapis.com/oauth2/v1/tokeninfo?access_token=' + gAccessToken);
         const info = await r.json();
         gUserEmail = info.email || '';
       } catch(e) {}
@@ -788,7 +786,7 @@ async function subirFotoDrive(base64, mime, nombre) {
       headers: { Authorization: 'Bearer ' + gAccessToken, 'Content-Type': 'application/json' },
       body:    JSON.stringify({ role: 'reader', type: 'anyone' })
     });
-    return 'https://lh3.googleusercontent.com/d/' + data.id;
+    return 'https://drive.google.com/thumbnail?id=' + data.id + '&sz=w1000';
   } catch(e) {
     return '';
   }
