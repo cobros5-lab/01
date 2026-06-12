@@ -713,7 +713,8 @@ async function enviarSheets(){
     try {
       let fotoUrl = '';
       if (d.fotoBase64 && gAccessToken) {
-        fotoUrl = await subirFotoDrive(d.fotoBase64, d.fotoMime, d.fotoNombre);
+        const fotoComprimida = await comprimirFoto(d.fotoBase64, d.fotoMime);
+        fotoUrl = await subirFotoDrive(fotoComprimida, d.fotoMime, d.fotoNombre);
       }
       await jsonpCall({
         action: 'guardar',
@@ -761,6 +762,25 @@ function iniciarLoginGoogle() {
     }
   });
   client.requestAccessToken();
+}
+
+async function comprimirFoto(base64, mime) {
+  return new Promise(function(resolve) {
+    const img = new Image();
+    img.onload = function() {
+      const MAX = 1200;
+      let w = img.width, h = img.height;
+      if (w > MAX || h > MAX) {
+        if (w > h) { h = Math.round(h * MAX / w); w = MAX; }
+        else       { w = Math.round(w * MAX / h); h = MAX; }
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      resolve(canvas.toDataURL(mime || 'image/jpeg', 0.7));
+    };
+    img.src = base64;
+  });
 }
 
 async function subirFotoDrive(base64, mime, nombre) {
