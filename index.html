@@ -313,6 +313,8 @@ function cargarDatosSheets() {
       badge.innerHTML = '<i class="ti ti-circle-check"></i> ' + ASESORES_SHEETS.length + ' asesores · ' + TIENDAS_SHEETS.length + ' tiendas';
       // Cargar áreas dinámicamente
       if (data.areas && data.areas.length) cargarAreas(data.areas);
+      // Restaurar campos AQUÍ, cuando los datos ya están listos
+      restaurarCampos();
     } else {
       usarDatosLocales(badge);
     }
@@ -345,6 +347,7 @@ function usarDatosLocales(badge) {
   TIENDAS_SHEETS = [];
   renderPersonas(ASESORES_SHEETS.map(a => a.nombre));
   renderTiendas(TIENDAS_SHEETS);
+  restaurarCampos();
 }
 
 // ── Personas buscable ─────────────────────────────────────────────────
@@ -619,18 +622,14 @@ function validarDoc(){
 
 function guardarBorrador() {
   try {
-    const sinFotos = docs.map(d => {
-      const c = Object.assign({}, d);
-      c.fotoBase64 = '';
-      return c;
-    });
+    const sinFotos = docs.map(d => { const c=Object.assign({},d); c.fotoBase64=''; return c; });
     localStorage.setItem('liquidacion_borrador', JSON.stringify(sinFotos));
   } catch(e) {}
 }
 
 function guardarCampos() {
   try {
-    const campos = {
+    localStorage.setItem('liquidacion_campos', JSON.stringify({
       area:       document.getElementById('f-area').value,
       persona:    document.getElementById('f-persona').value,
       personaTxt: document.getElementById('persona-search').value,
@@ -646,8 +645,7 @@ function guardarCampos() {
       deptoTxt:   document.getElementById('depto-search').value,
       tienda:     document.getElementById('f-tienda').value,
       tiendaTxt:  document.getElementById('tienda-search').value,
-    };
-    localStorage.setItem('liquidacion_campos', JSON.stringify(campos));
+    }));
   } catch(e) {}
 }
 
@@ -657,25 +655,23 @@ function restaurarCampos() {
     if (!raw) return;
     const c = JSON.parse(raw);
     if (!c) return;
-    // Solo restaurar si hay algo útil guardado
-    const hayDatos = c.area || c.persona || c.nfactura || c.proveedor || c.monto;
-    if (!hayDatos) return;
-    if (c.area) { document.getElementById('f-area').value = c.area; filtrarPersonasPorArea(); }
-    if (c.persona) { document.getElementById('f-persona').value = c.persona; }
-    if (c.personaTxt) { document.getElementById('persona-search').value = c.personaTxt; }
-    if (c.tipoDoc) { document.getElementById('f-tipo-doc').value = c.tipoDoc; }
-    if (c.nfactura) { document.getElementById('f-nfactura').value = c.nfactura; }
+    if (!(c.area || c.persona || c.nfactura || c.proveedor || c.monto)) return;
+    if (c.area)      { document.getElementById('f-area').value = c.area; filtrarPersonasPorArea(); }
+    if (c.persona)   { document.getElementById('f-persona').value = c.persona; }
+    if (c.personaTxt){ document.getElementById('persona-search').value = c.personaTxt; }
+    if (c.tipoDoc)   { document.getElementById('f-tipo-doc').value = c.tipoDoc; }
+    if (c.nfactura)  { document.getElementById('f-nfactura').value = c.nfactura; }
     if (c.proveedor) { document.getElementById('f-proveedor').value = c.proveedor; }
-    if (c.tipoCompra) { document.getElementById('f-tipo-compra').value = c.tipoCompra; }
+    if (c.tipoCompra){ document.getElementById('f-tipo-compra').value = c.tipoCompra; }
     if (c.compraTxt) { document.getElementById('compra-search').value = c.compraTxt; }
-    if (c.cantidad) { document.getElementById('f-cantidad').value = c.cantidad; }
-    if (c.monto) { document.getElementById('f-monto').value = c.monto; }
-    if (c.fecha) { document.getElementById('f-fecha').value = c.fecha; }
-    if (c.depto) { document.getElementById('f-depto').value = c.depto; }
-    if (c.deptoTxt) { document.getElementById('depto-search').value = c.deptoTxt; }
-    if (c.tienda) { document.getElementById('f-tienda').value = c.tienda; }
+    if (c.cantidad)  { document.getElementById('f-cantidad').value = c.cantidad; }
+    if (c.monto)     { document.getElementById('f-monto').value = c.monto; }
+    if (c.fecha)     { document.getElementById('f-fecha').value = c.fecha; }
+    if (c.depto)     { document.getElementById('f-depto').value = c.depto; }
+    if (c.deptoTxt)  { document.getElementById('depto-search').value = c.deptoTxt; }
+    if (c.tienda)    { document.getElementById('f-tienda').value = c.tienda; }
     if (c.tiendaTxt) { document.getElementById('tienda-search').value = c.tiendaTxt; }
-    showToast('📋 Formulario restaurado del borrador', '#185FA5');
+    showToast('📋 Formulario restaurado', '#185FA5');
   } catch(e) {}
 }
 
@@ -908,26 +904,20 @@ async function subirFotoDrive(base64, mime, nombre) {
 // ── Init ──────────────────────────────────────────────────────────────
 renderCompras(COMPRAS);
 renderDeptos(DEPTOS);
-cargarDatosSheets();
+cargarDatosSheets(); // restaurarCampos() se llama dentro cuando los datos estén listos
 restaurarBorrador();
 
-// Autoguardado de campos en tiempo real
+// Autoguardado en tiempo real
 (function() {
-  const ids = ['f-area','f-tipo-doc','f-nfactura','f-proveedor','f-cantidad','f-monto','f-fecha'];
-  ids.forEach(function(id) {
+  ['f-area','f-tipo-doc','f-nfactura','f-proveedor','f-cantidad','f-monto','f-fecha'].forEach(function(id) {
     const el = document.getElementById(id);
-    if (el) el.addEventListener('input', guardarCampos);
-    if (el) el.addEventListener('change', guardarCampos);
+    if (el) { el.addEventListener('input', guardarCampos); el.addEventListener('change', guardarCampos); }
   });
-  // Searchables: guardar cuando cambia el hidden o el texto visible
   ['persona-search','compra-search','depto-search','tienda-search'].forEach(function(id) {
     const el = document.getElementById(id);
     if (el) el.addEventListener('input', guardarCampos);
   });
 })();
-
-// Restaurar campos después de que Sheets cargue los datos (para que los dropdowns funcionen)
-setTimeout(restaurarCampos, 1500);
 </script>
 </body>
 </html>
