@@ -583,7 +583,7 @@ const fmtQ=n=>'Q '+parseFloat(n).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,',')
 function showToast(msg,color){const t=document.getElementById('toast');t.style.background=color||'#1D9E75';document.getElementById('toast-msg').textContent=msg;t.style.display='flex';setTimeout(()=>t.style.display='none',2500);}
 
 function eliminarDoc(i){docs.splice(i,1);renderTabla();actualizarMetrics();}
-function limpiarTodo(){if(!docs.length)return;if(!confirm('¿Seguro que deseas limpiar todos los registros?'))return;docs=[];renderTabla();actualizarMetrics();showToast('Lista limpiada','#64748B');}
+function limpiarTodo(){if(!docs.length)return;if(!confirm('¿Seguro que deseas limpiar todos los registros?'))return;docs=[];renderTabla();actualizarMetrics();limpiarBorrador();showToast('Lista limpiada','#64748B');}
 
 function renderTabla(){
   const tbody=document.getElementById('tabla-body');
@@ -615,6 +615,36 @@ function validarDoc(){
   mostrarResumen();
 }
 
+function guardarBorrador() {
+  try {
+    // Guardar sin las fotos en base64 (muy pesadas para localStorage)
+    const sinFotos = docs.map(d => {
+      const c = Object.assign({}, d);
+      c.fotoBase64 = '';
+      return c;
+    });
+    localStorage.setItem('liquidacion_borrador', JSON.stringify(sinFotos));
+  } catch(e) {}
+}
+
+function restaurarBorrador() {
+  try {
+    const raw = localStorage.getItem('liquidacion_borrador');
+    if (!raw) return;
+    const guardados = JSON.parse(raw);
+    if (guardados && guardados.length) {
+      docs = guardados;
+      renderTabla();
+      actualizarMetrics();
+      showToast(guardados.length + ' registro(s) restaurados del borrador', '#185FA5');
+    }
+  } catch(e) {}
+}
+
+function limpiarBorrador() {
+  try { localStorage.removeItem('liquidacion_borrador'); } catch(e) {}
+}
+
 function cerrarModal(){document.getElementById('modal-overlay').style.display='none';_tmp=null;}
 
 function confirmarDoc(){
@@ -630,7 +660,9 @@ function confirmarDoc(){
   document.getElementById('tienda-search').value='';document.getElementById('f-tienda').value='';
   quitarFoto();
   limpiarAsteriscos();renderCompras(COMPRAS);renderDeptos(DEPTOS);renderTiendas(TIENDAS_SHEETS);
-  renderTabla();actualizarMetrics();showToast('Registro ingresado');
+  renderTabla();actualizarMetrics();
+  guardarBorrador();
+  showToast('Registro ingresado');
 }
 
 function modoEditar(){
@@ -732,6 +764,7 @@ async function enviarSheets(){
 
   btn.disabled=false;
   btn.innerHTML='<i class="ti ti-brand-google"></i> Enviar a Google Sheets';
+  if (enviados > 0) limpiarBorrador();
   showToast('✓ '+enviados+' registro(s) enviados','#16A34A');
 }
 
@@ -768,7 +801,7 @@ async function comprimirFoto(base64, mime) {
   return new Promise(function(resolve) {
     const img = new Image();
     img.onload = function() {
-      const MAX = 1200;
+      const MAX = 800;
       let w = img.width, h = img.height;
       if (w > MAX || h > MAX) {
         if (w > h) { h = Math.round(h * MAX / w); w = MAX; }
@@ -777,7 +810,7 @@ async function comprimirFoto(base64, mime) {
       const canvas = document.createElement('canvas');
       canvas.width = w; canvas.height = h;
       canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-      resolve(canvas.toDataURL(mime || 'image/jpeg', 0.7));
+      resolve(canvas.toDataURL('image/jpeg', 0.4));
     };
     img.src = base64;
   });
@@ -816,6 +849,7 @@ async function subirFotoDrive(base64, mime, nombre) {
 renderCompras(COMPRAS);
 renderDeptos(DEPTOS);
 cargarDatosSheets();
+restaurarBorrador();
 </script>
 </body>
 </html>
