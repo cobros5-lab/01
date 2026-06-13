@@ -784,7 +784,7 @@ async function comprimirFoto(base64, mime) {
 }
 
 async function subirFotoDrive(base64, mime, nombre) {
-  if (!gAccessToken) return '';
+  if (!gAccessToken) { showToast('Sin token de Drive','#E24B4A'); return ''; }
   try {
     const raw     = base64.indexOf(',') > -1 ? base64.split(',')[1] : base64;
     const bytes   = Uint8Array.from(atob(raw), c => c.charCodeAt(0));
@@ -799,8 +799,7 @@ async function subirFotoDrive(base64, mime, nombre) {
       body:    form
     });
     const data = await res.json();
-    if (!data.id) return '';
-    // Hacer el archivo público
+    if (!data.id) { showToast('Error Drive: ' + JSON.stringify(data),'#E24B4A'); return ''; }
     await fetch('https://www.googleapis.com/drive/v3/files/' + data.id + '/permissions', {
       method:  'POST',
       headers: { Authorization: 'Bearer ' + gAccessToken, 'Content-Type': 'application/json' },
@@ -808,6 +807,7 @@ async function subirFotoDrive(base64, mime, nombre) {
     });
     return 'https://drive.google.com/thumbnail?id=' + data.id + '&sz=w1000';
   } catch(e) {
+    showToast('Error foto: ' + e.message,'#E24B4A');
     return '';
   }
 }
