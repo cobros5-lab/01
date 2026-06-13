@@ -389,6 +389,7 @@ function seleccionarPersona(p) {
   document.getElementById('persona-dropdown').classList.remove('open');
   document.getElementById('persona-search').classList.remove('err');
   guardarCampos();
+  if (window.innerWidth <= 768) setTimeout(() => { const el = document.getElementById('f-tipo-doc'); if(el){el.focus();el.scrollIntoView({behavior:'smooth',block:'center'});} }, 150);
 }
 
 function autoSelectPersona() {
@@ -417,12 +418,30 @@ function renderTiendas(lista) {
 }
 
 function filtrarTiendas() {
-  const q = document.getElementById('tienda-search').value.toLowerCase();
+  const q = document.getElementById('tienda-search').value.toLowerCase().trim();
+  if (!q) { renderTiendas(TIENDAS_SHEETS); abrirDropdown('tienda-dropdown'); return; }
   const filtradas = TIENDAS_SHEETS.filter(t => t.toLowerCase().includes(q));
-  renderTiendas(filtradas.length ? filtradas : TIENDAS_SHEETS);
-  if (filtradas.length === 1) {
+  const dd = document.getElementById('tienda-dropdown');
+  dd.innerHTML = '';
+  if (filtradas.length === 0) {
+    // No existe — mostrar aviso y limpiar valor hidden
+    document.getElementById('f-tienda').value = '';
+    const item = document.createElement('div');
+    item.className = 'dropdown-item';
+    item.style.cssText = 'color:#E24B4A;cursor:default;font-style:italic';
+    item.textContent = '✕ No existe en la lista';
+    dd.appendChild(item);
+    abrirDropdown('tienda-dropdown');
+  } else if (filtradas.length === 1) {
     seleccionarTienda(filtradas[0]);
   } else {
+    filtradas.forEach((t, i) => {
+      const d = document.createElement('div');
+      d.className = 'dropdown-item' + (i === 0 ? ' active' : '');
+      d.textContent = t.toUpperCase();
+      d.onmousedown = () => seleccionarTienda(t);
+      dd.appendChild(d);
+    });
     abrirDropdown('tienda-dropdown');
   }
 }
@@ -433,31 +452,75 @@ function seleccionarTienda(t) {
   document.getElementById('tienda-dropdown').classList.remove('open');
   document.getElementById('tienda-search').classList.remove('err');
   guardarCampos();
+  // Avanzar al siguiente campo en móvil
+  if (window.innerWidth <= 768) {
+    setTimeout(() => document.getElementById('f-foto').focus(), 150);
+  }
 }
 
 function autoSelectTienda() {
   setTimeout(() => {
-    if (!document.getElementById('f-tienda').value) {
-      const txt = document.getElementById('tienda-search').value.trim();
-      const exacta = TIENDAS_SHEETS.find(t => t.toLowerCase() === txt.toLowerCase());
-      if (exacta) seleccionarTienda(exacta);
-      else if (txt) document.getElementById('f-tienda').value = txt;
+    const txt = document.getElementById('tienda-search').value.trim();
+    const exacta = TIENDAS_SHEETS.find(t => t.toLowerCase() === txt.toLowerCase());
+    if (exacta) {
+      seleccionarTienda(exacta);
+    } else if (!txt) {
+      document.getElementById('f-tienda').value = '';
     }
+    // Si no coincide exactamente, deja el campo en rojo al validar
     document.getElementById('tienda-dropdown').classList.remove('open');
   }, 180);
 }
 
-// ── Scroll al campo activo en móvil ──────────────────────────────────
+// ── Auto-avance entre campos en móvil ────────────────────────────────
 document.addEventListener('DOMContentLoaded', function() {
+  // Orden de campos para avanzar con "siguiente" en móvil
+  const ORDEN = ['f-area','persona-search','f-tipo-doc','f-nfactura','f-proveedor',
+                 'compra-search','f-cantidad','f-monto','f-fecha','depto-search','tienda-search'];
+
+  function siguienteCampo(idActual) {
+    if (window.innerWidth > 768) return;
+    const idx = ORDEN.indexOf(idActual);
+    if (idx === -1 || idx >= ORDEN.length - 1) return;
+    const next = document.getElementById(ORDEN[idx + 1]);
+    if (next) { setTimeout(() => { next.focus(); next.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 120); }
+  }
+
+  // Scroll suave al hacer focus
   document.querySelectorAll('input, select').forEach(function(el) {
     el.addEventListener('focus', function() {
       if (window.innerWidth <= 768) {
-        setTimeout(function() {
-          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }, 300);
+        setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'center' }), 300);
       }
     });
   });
+
+  // Avanzar al presionar Enter o al completar campos numéricos
+  ['f-nfactura','f-proveedor','f-cantidad','f-monto'].forEach(function(id) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') { e.preventDefault(); siguienteCampo(id); }
+    });
+  });
+
+  // Avanzar automático al seleccionar área
+  document.getElementById('f-area').addEventListener('change', function() {
+    if (window.innerWidth <= 768) siguienteCampo('f-area');
+  });
+
+  // Avanzar al seleccionar tipo doc
+  document.getElementById('f-tipo-doc').addEventListener('change', function() {
+    if (window.innerWidth <= 768) siguienteCampo('f-tipo-doc');
+  });
+
+  // Avanzar al completar fecha (cuando tiene 10 chars DD/MM/AAAA)
+  document.getElementById('f-fecha').addEventListener('input', function() {
+    if (this.value.length === 10 && window.innerWidth <= 768) siguienteCampo('f-fecha');
+  });
+
+  // Avanzar al completar N° factura (al presionar Enter ya está arriba)
+  // Avanzar desde searchables se maneja en seleccionarPersona, seleccionarCompra, etc.
 });
 
 // ── Datos fijos ───────────────────────────────────────────────────────
@@ -494,8 +557,8 @@ function renderDeptos(lista){const dd=document.getElementById('depto-dropdown');
 function abrirDropdown(id){document.querySelectorAll('.dropdown-list').forEach(d=>{if(d.id!==id)d.classList.remove('open');});document.getElementById(id).classList.add('open');}
 function filtrarCompras(){const q=document.getElementById('compra-search').value.toLowerCase();const f=COMPRAS.filter(c=>c.split('|')[0].toLowerCase().includes(q));renderCompras(f);abrirDropdown('compra-dropdown');}
 function filtrarDeptos(){const q=document.getElementById('depto-search').value.toLowerCase();const f=DEPTOS.filter(d=>d.toLowerCase().includes(q));renderDeptos(f);abrirDropdown('depto-dropdown');}
-function seleccionarCompra(val,label){document.getElementById('compra-search').value=label.toUpperCase();document.getElementById('f-tipo-compra').value=val;document.getElementById('compra-dropdown').classList.remove('open');document.getElementById('compra-search').classList.remove('err');guardarCampos();}
-function seleccionarDepto(dep){document.getElementById('depto-search').value=dep.toUpperCase();document.getElementById('f-depto').value=dep;document.getElementById('depto-dropdown').classList.remove('open');document.getElementById('depto-search').classList.remove('err');guardarCampos();}
+function seleccionarCompra(val,label){document.getElementById('compra-search').value=label.toUpperCase();document.getElementById('f-tipo-compra').value=val;document.getElementById('compra-dropdown').classList.remove('open');document.getElementById('compra-search').classList.remove('err');guardarCampos();if(window.innerWidth<=768)setTimeout(()=>{const el=document.getElementById('f-cantidad');if(el){el.focus();el.scrollIntoView({behavior:'smooth',block:'center'});}},150);}
+function seleccionarDepto(dep){document.getElementById('depto-search').value=dep.toUpperCase();document.getElementById('f-depto').value=dep;document.getElementById('depto-dropdown').classList.remove('open');document.getElementById('depto-search').classList.remove('err');guardarCampos();if(window.innerWidth<=768)setTimeout(()=>{const el=document.getElementById('tienda-search');if(el){el.focus();el.scrollIntoView({behavior:'smooth',block:'center'});}},150);}
 function autoSelectCompra(){setTimeout(()=>{if(!document.getElementById('f-tipo-compra').value&&comprasFiltradas.length>0){const best=comprasFiltradas[0];seleccionarCompra(best,best.split('|')[0]);}document.getElementById('compra-dropdown').classList.remove('open');},180);}
 function autoSelectDepto(){setTimeout(()=>{if(!document.getElementById('f-depto').value&&deptosFiltrados.length>0){seleccionarDepto(deptosFiltrados[0]);}document.getElementById('depto-dropdown').classList.remove('open');},180);}
 document.addEventListener('click',e=>{if(!e.target.closest('.searchable-wrap'))document.querySelectorAll('.dropdown-list').forEach(d=>d.classList.remove('open'));});
@@ -857,7 +920,7 @@ async function comprimirFoto(base64, mime) {
   return new Promise(function(resolve) {
     const img = new Image();
     img.onload = function() {
-      const MAX = 800;
+      const MAX = 600;  // antes 800px
       let w = img.width, h = img.height;
       if (w > MAX || h > MAX) {
         if (w > h) { h = Math.round(h * MAX / w); w = MAX; }
@@ -866,7 +929,7 @@ async function comprimirFoto(base64, mime) {
       const canvas = document.createElement('canvas');
       canvas.width = w; canvas.height = h;
       canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-      resolve(canvas.toDataURL('image/jpeg', 0.4));
+      resolve(canvas.toDataURL('image/jpeg', 0.25)); // antes 0.4
     };
     img.src = base64;
   });
