@@ -385,6 +385,7 @@ function seleccionarPersona(p) {
   document.getElementById('f-persona').value = p;
   document.getElementById('persona-dropdown').classList.remove('open');
   document.getElementById('persona-search').classList.remove('err');
+  guardarCampos();
 }
 
 function autoSelectPersona() {
@@ -428,6 +429,7 @@ function seleccionarTienda(t) {
   document.getElementById('f-tienda').value = t;
   document.getElementById('tienda-dropdown').classList.remove('open');
   document.getElementById('tienda-search').classList.remove('err');
+  guardarCampos();
 }
 
 function autoSelectTienda() {
@@ -489,8 +491,8 @@ function renderDeptos(lista){const dd=document.getElementById('depto-dropdown');
 function abrirDropdown(id){document.querySelectorAll('.dropdown-list').forEach(d=>{if(d.id!==id)d.classList.remove('open');});document.getElementById(id).classList.add('open');}
 function filtrarCompras(){const q=document.getElementById('compra-search').value.toLowerCase();const f=COMPRAS.filter(c=>c.split('|')[0].toLowerCase().includes(q));renderCompras(f);abrirDropdown('compra-dropdown');}
 function filtrarDeptos(){const q=document.getElementById('depto-search').value.toLowerCase();const f=DEPTOS.filter(d=>d.toLowerCase().includes(q));renderDeptos(f);abrirDropdown('depto-dropdown');}
-function seleccionarCompra(val,label){document.getElementById('compra-search').value=label.toUpperCase();document.getElementById('f-tipo-compra').value=val;document.getElementById('compra-dropdown').classList.remove('open');document.getElementById('compra-search').classList.remove('err');}
-function seleccionarDepto(dep){document.getElementById('depto-search').value=dep.toUpperCase();document.getElementById('f-depto').value=dep;document.getElementById('depto-dropdown').classList.remove('open');document.getElementById('depto-search').classList.remove('err');}
+function seleccionarCompra(val,label){document.getElementById('compra-search').value=label.toUpperCase();document.getElementById('f-tipo-compra').value=val;document.getElementById('compra-dropdown').classList.remove('open');document.getElementById('compra-search').classList.remove('err');guardarCampos();}
+function seleccionarDepto(dep){document.getElementById('depto-search').value=dep.toUpperCase();document.getElementById('f-depto').value=dep;document.getElementById('depto-dropdown').classList.remove('open');document.getElementById('depto-search').classList.remove('err');guardarCampos();}
 function autoSelectCompra(){setTimeout(()=>{if(!document.getElementById('f-tipo-compra').value&&comprasFiltradas.length>0){const best=comprasFiltradas[0];seleccionarCompra(best,best.split('|')[0]);}document.getElementById('compra-dropdown').classList.remove('open');},180);}
 function autoSelectDepto(){setTimeout(()=>{if(!document.getElementById('f-depto').value&&deptosFiltrados.length>0){seleccionarDepto(deptosFiltrados[0]);}document.getElementById('depto-dropdown').classList.remove('open');},180);}
 document.addEventListener('click',e=>{if(!e.target.closest('.searchable-wrap'))document.querySelectorAll('.dropdown-list').forEach(d=>d.classList.remove('open'));});
@@ -617,7 +619,6 @@ function validarDoc(){
 
 function guardarBorrador() {
   try {
-    // Guardar sin las fotos en base64 (muy pesadas para localStorage)
     const sinFotos = docs.map(d => {
       const c = Object.assign({}, d);
       c.fotoBase64 = '';
@@ -625,6 +626,61 @@ function guardarBorrador() {
     });
     localStorage.setItem('liquidacion_borrador', JSON.stringify(sinFotos));
   } catch(e) {}
+}
+
+function guardarCampos() {
+  try {
+    const campos = {
+      area:       document.getElementById('f-area').value,
+      persona:    document.getElementById('f-persona').value,
+      personaTxt: document.getElementById('persona-search').value,
+      tipoDoc:    document.getElementById('f-tipo-doc').value,
+      nfactura:   document.getElementById('f-nfactura').value,
+      proveedor:  document.getElementById('f-proveedor').value,
+      tipoCompra: document.getElementById('f-tipo-compra').value,
+      compraTxt:  document.getElementById('compra-search').value,
+      cantidad:   document.getElementById('f-cantidad').value,
+      monto:      document.getElementById('f-monto').value,
+      fecha:      document.getElementById('f-fecha').value,
+      depto:      document.getElementById('f-depto').value,
+      deptoTxt:   document.getElementById('depto-search').value,
+      tienda:     document.getElementById('f-tienda').value,
+      tiendaTxt:  document.getElementById('tienda-search').value,
+    };
+    localStorage.setItem('liquidacion_campos', JSON.stringify(campos));
+  } catch(e) {}
+}
+
+function restaurarCampos() {
+  try {
+    const raw = localStorage.getItem('liquidacion_campos');
+    if (!raw) return;
+    const c = JSON.parse(raw);
+    if (!c) return;
+    // Solo restaurar si hay algo útil guardado
+    const hayDatos = c.area || c.persona || c.nfactura || c.proveedor || c.monto;
+    if (!hayDatos) return;
+    if (c.area) { document.getElementById('f-area').value = c.area; filtrarPersonasPorArea(); }
+    if (c.persona) { document.getElementById('f-persona').value = c.persona; }
+    if (c.personaTxt) { document.getElementById('persona-search').value = c.personaTxt; }
+    if (c.tipoDoc) { document.getElementById('f-tipo-doc').value = c.tipoDoc; }
+    if (c.nfactura) { document.getElementById('f-nfactura').value = c.nfactura; }
+    if (c.proveedor) { document.getElementById('f-proveedor').value = c.proveedor; }
+    if (c.tipoCompra) { document.getElementById('f-tipo-compra').value = c.tipoCompra; }
+    if (c.compraTxt) { document.getElementById('compra-search').value = c.compraTxt; }
+    if (c.cantidad) { document.getElementById('f-cantidad').value = c.cantidad; }
+    if (c.monto) { document.getElementById('f-monto').value = c.monto; }
+    if (c.fecha) { document.getElementById('f-fecha').value = c.fecha; }
+    if (c.depto) { document.getElementById('f-depto').value = c.depto; }
+    if (c.deptoTxt) { document.getElementById('depto-search').value = c.deptoTxt; }
+    if (c.tienda) { document.getElementById('f-tienda').value = c.tienda; }
+    if (c.tiendaTxt) { document.getElementById('tienda-search').value = c.tiendaTxt; }
+    showToast('📋 Formulario restaurado del borrador', '#185FA5');
+  } catch(e) {}
+}
+
+function limpiarCampos() {
+  try { localStorage.removeItem('liquidacion_campos'); } catch(e) {}
 }
 
 function restaurarBorrador() {
@@ -642,7 +698,10 @@ function restaurarBorrador() {
 }
 
 function limpiarBorrador() {
-  try { localStorage.removeItem('liquidacion_borrador'); } catch(e) {}
+  try {
+    localStorage.removeItem('liquidacion_borrador');
+    localStorage.removeItem('liquidacion_campos');
+  } catch(e) {}
 }
 
 function cerrarModal(){document.getElementById('modal-overlay').style.display='none';_tmp=null;}
@@ -662,6 +721,7 @@ function confirmarDoc(){
   limpiarAsteriscos();renderCompras(COMPRAS);renderDeptos(DEPTOS);renderTiendas(TIENDAS_SHEETS);
   renderTabla();actualizarMetrics();
   guardarBorrador();
+  limpiarCampos();
   showToast('Registro ingresado');
 }
 
@@ -850,6 +910,24 @@ renderCompras(COMPRAS);
 renderDeptos(DEPTOS);
 cargarDatosSheets();
 restaurarBorrador();
+
+// Autoguardado de campos en tiempo real
+(function() {
+  const ids = ['f-area','f-tipo-doc','f-nfactura','f-proveedor','f-cantidad','f-monto','f-fecha'];
+  ids.forEach(function(id) {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('input', guardarCampos);
+    if (el) el.addEventListener('change', guardarCampos);
+  });
+  // Searchables: guardar cuando cambia el hidden o el texto visible
+  ['persona-search','compra-search','depto-search','tienda-search'].forEach(function(id) {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('input', guardarCampos);
+  });
+})();
+
+// Restaurar campos después de que Sheets cargue los datos (para que los dropdowns funcionen)
+setTimeout(restaurarCampos, 1500);
 </script>
 </body>
 </html>
