@@ -732,18 +732,22 @@ function restaurarCampos() {
     if (c.fecha)     { document.getElementById('f-fecha').value = c.fecha; }
     if (c.depto)     { document.getElementById('f-depto').value = c.depto; }
     if (c.deptoTxt)  { document.getElementById('depto-search').value = c.deptoTxt; }
-    // Tienda: buscar coincidencia exacta en la lista y seleccionarla
-    if (c.tienda) {
-      const exacta = TIENDAS_SHEETS.find(t => t.toLowerCase() === c.tienda.toLowerCase());
-      if (exacta) {
-        seleccionarTienda(exacta);
-      } else if (c.tiendaTxt) {
-        // Si no está en la lista, solo mostrar el texto (quedará inválido al validar)
-        document.getElementById('tienda-search').value = c.tiendaTxt;
+    // Tienda: buscar coincidencia exacta o parcial única en la lista
+    if (c.tienda || c.tiendaTxt) {
+      const buscar = (c.tienda || c.tiendaTxt || '').toLowerCase();
+      // 1. Coincidencia exacta por valor guardado
+      let encontrada = TIENDAS_SHEETS.find(t => t.toLowerCase() === buscar);
+      // 2. Si no, coincidencia parcial única
+      if (!encontrada) {
+        const parciales = TIENDAS_SHEETS.filter(t => t.toLowerCase().includes(buscar));
+        if (parciales.length === 1) encontrada = parciales[0];
+      }
+      if (encontrada) {
+        seleccionarTienda(encontrada);
+      } else {
+        document.getElementById('tienda-search').value = c.tiendaTxt || c.tienda || '';
         document.getElementById('f-tienda').value = '';
       }
-    } else if (c.tiendaTxt) {
-      document.getElementById('tienda-search').value = c.tiendaTxt;
     }
     showToast('📋 Formulario restaurado', '#185FA5');
   } catch(e) {}
