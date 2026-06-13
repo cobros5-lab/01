@@ -732,8 +732,19 @@ function restaurarCampos() {
     if (c.fecha)     { document.getElementById('f-fecha').value = c.fecha; }
     if (c.depto)     { document.getElementById('f-depto').value = c.depto; }
     if (c.deptoTxt)  { document.getElementById('depto-search').value = c.deptoTxt; }
-    if (c.tienda)    { document.getElementById('f-tienda').value = c.tienda; }
-    if (c.tiendaTxt) { document.getElementById('tienda-search').value = c.tiendaTxt; }
+    // Tienda: buscar coincidencia exacta en la lista y seleccionarla
+    if (c.tienda) {
+      const exacta = TIENDAS_SHEETS.find(t => t.toLowerCase() === c.tienda.toLowerCase());
+      if (exacta) {
+        seleccionarTienda(exacta);
+      } else if (c.tiendaTxt) {
+        // Si no está en la lista, solo mostrar el texto (quedará inválido al validar)
+        document.getElementById('tienda-search').value = c.tiendaTxt;
+        document.getElementById('f-tienda').value = '';
+      }
+    } else if (c.tiendaTxt) {
+      document.getElementById('tienda-search').value = c.tiendaTxt;
+    }
     showToast('📋 Formulario restaurado', '#185FA5');
   } catch(e) {}
 }
