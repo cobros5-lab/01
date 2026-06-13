@@ -746,7 +746,15 @@ async function enviarSheets(){
       let fotoUrl = '';
       if (d.fotoBase64 && gAccessToken) {
         const fotoComprimida = await comprimirFoto(d.fotoBase64, d.fotoMime);
-        fotoUrl = await subirFotoDrive(fotoComprimida, d.fotoMime, d.fotoNombre);
+        // Subir foto via Apps Script (Drive de cobros5) en lugar del Drive del usuario
+        const base64puro = fotoComprimida.indexOf(',') > -1 ? fotoComprimida.split(',')[1] : fotoComprimida;
+        const resF = await jsonpCall({
+          action: 'subirFoto',
+          data:   base64puro,
+          mime:   d.fotoMime || 'image/jpeg',
+          nombre: d.fotoNombre || ('foto_' + Date.now() + '.jpg')
+        });
+        fotoUrl = (resF && resF.fotoUrl) ? resF.fotoUrl : '';
       }
       await jsonpCall({
         action: 'guardar',
